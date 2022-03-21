@@ -24,6 +24,8 @@ const handler = async (req: Request) => {
   if (token === undefined) throw new Error();
   if (key === undefined) throw new Error();
 
+  console.log(await req.json());
+
   if (!req.body) {
     const body = JSON.stringify({ message: "Body Not found" });
     return new Response(body, { status: 400 });
@@ -31,6 +33,7 @@ const handler = async (req: Request) => {
 
   const signature = req.headers.get("X-Signature-Ed25519");
   const timestamp = req.headers.get("X-Signature-Timestamp");
+  console.log(signature, timestamp);
   if (signature === null || timestamp === null) return new Response();
 
   const ok = verify(key, signature, timestamp, await req.text());
