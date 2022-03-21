@@ -26,36 +26,41 @@ const handlePing = (_body: APIPingInteraction) => {
 };
 
 const handleMessageComponent = async (body: APIMessageComponentInteraction) => {
-  const getResponse = (content: string) => new Response(JSON.stringify(
-    {
-      type: 4,
-      data: { content, flags: 1 << 6 },
-    }), { status: 200, "headers": { "Content-Type": "application/json" } });
+  const getResponse = (content: string) =>
+    new Response(
+      JSON.stringify(
+        {
+          type: 4,
+          data: { content, flags: 1 << 6 },
+        },
+      ),
+      { status: 200, "headers": { "Content-Type": "application/json" } },
+    );
   const token = Deno.env.get("DISCORD_TOKEN");
   if (token === undefined) throw new Error();
   const id = body.data.custom_id;
 
   if (body.guild_id === undefined || body.member === undefined) {
-    return getResponse("ボタンの処理に失敗しました。")
+    return getResponse("ボタンの処理に失敗しました。");
   }
-  if (!id.startsWith("role-")) return getResponse("不正なボタンが押されました。")
+  if (!id.startsWith("role-")) return getResponse("不正なボタンが押されました。");
   const roleID = id.slice(5);
 
   const endpoint =
     `https://discord.com/api/v9/guilds/${body.guild_id}/members/${body.member.user.id}/roles/${roleID}`;
 
   try {
-    await fetch(endpoint, {
+    const res = await fetch(endpoint, {
       method: "PUT",
       headers: {
         "Authorization": `Bot ${token}`,
       },
     });
-    return getResponse("ロールの付与に成功しました。")
-      
+    if (res.status === 403) return getResponse("ロールを付与する権限がBotにありませんでした。");
+    return getResponse("ロールの付与に成功しました。");
   } catch (e) {
     console.error(e);
-    return getResponse("ロールの付与に失敗しました。")
+    return getResponse("ロールの付与に失敗しました。");
   }
 };
 
