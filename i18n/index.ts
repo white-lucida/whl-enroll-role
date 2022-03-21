@@ -1,0 +1,1 @@
+export { JA } from "./ja.ts";

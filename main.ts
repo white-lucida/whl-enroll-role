@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.130.0/http/server.ts";
 import {
   APIInteraction,
   APIMessageComponentInteraction,
@@ -7,6 +6,7 @@ import {
 } from "https://raw.githubusercontent.com/discordjs/discord-api-types/main/deno/v9.ts";
 import { sign_detached_verify } from "https://deno.land/x/tweetnacl_deno_fix@1.1.2/src/sign.ts";
 import Buffer from "https://deno.land/std@0.76.0/node/buffer.ts";
+import { i18n } from "./i18n/i18n.ts";
 
 const verify = (
   publicKey: string,
@@ -25,7 +25,7 @@ const handlePing = (_body: APIPingInteraction) => {
   return new Response(JSON.stringify({ type: 1 }), { status: 200 });
 };
 
-const handleMessageComponent = async (body: APIMessageComponentInteraction) => {
+const handleMessageComponent = async (body: APIMessageComponentInteraction, sentences: i18n) => {
   const getResponse = (content: string) =>
     new Response(
       JSON.stringify(
@@ -41,9 +41,9 @@ const handleMessageComponent = async (body: APIMessageComponentInteraction) => {
   const id = body.data.custom_id;
 
   if (body.guild_id === undefined || body.member === undefined) {
-    return getResponse("ボタンの処理に失敗しました。");
+    return getResponse(sentences.FAILED_TO_ADD_ROLE);
   }
-  if (!id.startsWith("role-")) return getResponse("不正なボタンが押されました。");
+  if (!id.startsWith("role-")) return getResponse(sentences.BUTTON_ID_IS_VALID);
   const roleID = id.slice(5);
 
   const endpoint =
@@ -56,17 +56,17 @@ const handleMessageComponent = async (body: APIMessageComponentInteraction) => {
         "Authorization": `Bot ${token}`,
       },
     });
-    if (res.status === 403) return getResponse("ロールを付与する権限がBotにありませんでした。");
-    return getResponse("ロールの付与に成功しました。");
+    if (res.status === 403) return getResponse(sentences.FORBIDDEN);
+    return getResponse(sentences.SUCCEEDED_TO_ADD_ROLE);
   } catch (e) {
     console.error(e);
-    return getResponse("ロールの付与に失敗しました。");
+    return getResponse(sentences.FAILED_TO_ADD_ROLE);
   }
 };
 
-const handler = async (req: Request) => {
+const handler = async (req: Request, getSentences: (locale: APIInteraction["guild_locale"]) => i18n) => {
   const key = Deno.env.get("PUBLIC_KEY");
-  if (key === undefined) throw new Error();
+  if (key === undefined) throw new Error("PUBLIC_KEY is undefined");
 
   if (!req.body) {
     const body = JSON.stringify({ message: "Body Not found" });
@@ -89,11 +89,10 @@ const handler = async (req: Request) => {
 
   if (body.type === InteractionType.MessageComponent) {
     console.log("Component");
-    return await handleMessageComponent(body);
+    return await handleMessageComponent(body, getSentences(body.guild_locale));
   }
 
   return new Response("invalid request", { status: 401 });
 };
 
-serve(handler, { port: 8000 });
-console.log("http://localhost:8000/");
+export { handler };
